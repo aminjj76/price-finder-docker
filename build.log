@@ -1,0 +1,48 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 812B done
+#1 DONE 0.0s
+
+#2 [auth] library/python:pull token for registry-1.docker.io
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.9-slim
+#3 DONE 2.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 132B done
+#4 DONE 0.0s
+
+#5 [1/7] FROM docker.io/library/python:3.9-slim@sha256:c2a0feb07dedbf91498883c2f8e1e5201e95c91d413e21c3bea780c8aad8e6a7
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 589B done
+#6 DONE 0.0s
+
+#7 [2/7] WORKDIR /app
+#7 CACHED
+
+#8 [3/7] RUN apt-get update && apt-get install -y     gcc     g++     curl     && rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [5/7] RUN pip install --no-cache-dir -r requirements.txt
+#9 CACHED
+
+#10 [4/7] COPY requirements.txt .
+#10 CACHED
+
+#11 [6/7] COPY . .
+#11 CACHED
+
+#12 [7/7] RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
+#12 CACHED
+
+#13 exporting to image
+#13 exporting layers done
+#13 writing image sha256:6e4afbc9ca15f7c7c15b2d05f6224e1e13130ee810c33dff2d81eae7d103833f done
+#13 naming to docker.io/library/finder-price done
+#13 DONE 0.0s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/buofkk3c1r89kcthvct48i3hq

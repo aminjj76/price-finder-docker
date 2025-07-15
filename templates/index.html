@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مظنه</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Yekan', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(45deg, #2196F3, #21CBF3);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .search-section {
+            padding: 40px;
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #2196F3;
+        }
+        
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .search-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .search-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results {
+            display: none;
+        }
+        
+        .price-summary {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            border-right: 5px solid #4CAF50;
+        }
+        
+        .price-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .price-item:last-child {
+            border-bottom: none;
+        }
+        
+        .price-label {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .price-value {
+            color: #2196F3;
+            font-weight: bold;
+        }
+        
+        .fair-price {
+            background: #4CAF50;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 1.3em;
+            margin-bottom: 20px;
+        }
+        
+        .sources {
+            margin-top: 25px;
+        }
+        
+        .source-item {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .source-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .source-stats {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        
+        .product-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            background: #fafafa;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+        
+        .product-image {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            background: #f0f0f0;
+        }
+        
+        .product-title {
+            font-size: 0.95em;
+            color: #333;
+            margin-bottom: 12px;
+            line-height: 1.4;
+            height: 45px;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+        
+        .product-price-link {
+            display: inline-block;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #2196F3;
+            text-decoration: none;
+            padding: 10px 15px;
+            background: #e3f2fd;
+            border-radius: 25px;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .product-price-link:hover {
+            background: #bbdefb;
+            text-decoration: none;
+            color: #1976d2;
+            border-color: #2196F3;
+            transform: scale(1.05);
+        }
+        
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            border-right: 5px solid #f44336;
+            display: none;
+        }
+        
+        .shop-icon {
+            font-size: 1.2em;
+        }
+        
+        @media (max-width: 600px) {
+            .search-box {
+                flex-direction: column;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .search-section {
+                padding: 20px;
+            }
+            
+            .products-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                margin: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 مظنه</h1>
+            <p>با قیمت گذاری مناسب بهترین فروش را تجربه کنید</p>
+        </div>
+        
+        <div class="search-section">
+            <div class="search-box">
+                <input type="text" class="search-input" id="productInput" placeholder="نام محصول را وارد کنید..." />
+                <button class="search-btn" id="searchBtn">جستجو</button>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>در حال جستجو...</p>
+            </div>
+            
+            <div class="error" id="error"></div>
+            
+            <div class="results" id="results">
+                <div class="fair-price" id="fairPrice"></div>
+                
+                <div class="price-summary" id="priceSummary"></div>
+                
+                <div class="sources" id="sources"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const productInput = document.getElementById('productInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const error = document.getElementById('error');
+        const fairPrice = document.getElementById('fairPrice');
+        const priceSummary = document.getElementById('priceSummary');
+        const sources = document.getElementById('sources');
+
+        // جستجو با Enter
+        productInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchProduct();
+            }
+        });
+
+        searchBtn.addEventListener('click', searchProduct);
+
+        function searchProduct() {
+            const productName = productInput.value.trim();
+            
+            if (!productName) {
+                showError('لطفاً نام محصول را وارد کنید');
+                return;
+            }
+
+            // نمایش loading
+            loading.style.display = 'block';
+            results.style.display = 'none';
+            error.style.display = 'none';
+            searchBtn.disabled = true;
+
+            // ارسال درخواست
+            fetch('/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    product_name: productName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = 'none';
+                searchBtn.disabled = false;
+                
+                if (data.success) {
+                    showResults(data);
+                } else {
+                    showError(data.message);
+                }
+            })
+            .catch(err => {
+                loading.style.display = 'none';
+                searchBtn.disabled = false;
+                showError('خطا در اتصال به سرور');
+                console.error('Error:', err);
+            });
+        }
+
+        function showResults(data) {
+            // نمایش قیمت منصفانه
+            fairPrice.innerHTML = `
+                💰 قیمت پیشنهادی: <strong>${data.formatted_fair_price}</strong>
+            `;
+
+            // نمایش خلاصه قیمت‌ها
+            priceSummary.innerHTML = `
+                <div class="price-item">
+                    <span class="price-label">رنج قیمتی:</span>
+                    <span class="price-value">${data.price_range}</span>
+                </div>
+                <div class="price-item">
+                    <span class="price-label">کمترین قیمت:</span>
+                    <span class="price-value">${data.formatted_min_price}</span>
+                </div>
+                <div class="price-item">
+                    <span class="price-label">بیشترین قیمت:</span>
+                    <span class="price-value">${data.formatted_max_price}</span>
+                </div>
+                <div class="price-item">
+                    <span class="price-label">میانگین قیمت:</span>
+                    <span class="price-value">${data.formatted_avg_price}</span>
+                </div>
+                <div class="price-item">
+                    <span class="price-label">تعداد کل محصولات:</span>
+                    <span class="price-value">${data.total_results} محصول</span>
+                </div>
+            `;
+
+
+                        // نمایش منابع با لینک‌های قابل کلیک
+            let sourcesHTML = '<h3>🛍️ قیمت‌ها در فروشگاه‌های مختلف:</h3>';
+            
+            // آیکون‌های فروشگاه‌ها
+            const shopIcons = {
+                'دیجی‌کالا': '📱',
+                'ترب': '🛒',
+                'باسلام': '🏪'
+            };
+            
+            for (const [sourceName, products] of Object.entries(data.detailed_products)) {
+                const stats = data.source_stats[sourceName];
+                const icon = shopIcons[sourceName] || '🏬';
+                
+                sourcesHTML += `
+                    <div class="source-item">
+                        <div class="source-name">
+                            <span class="shop-icon">${icon}</span>
+                            ${sourceName}
+                        </div>
+                        <div class="source-stats">
+                            📊 ${stats.count} محصول | 
+                            💰 کمترین: ${stats.formatted_min} | 
+                            💰 بیشترین: ${stats.formatted_max} | 
+                            📈 میانگین: ${stats.formatted_avg}
+                        </div>
+                        <div class="products-grid">
+                `;
+                
+                products.forEach(product => {
+                    sourcesHTML += `
+                        <div class="product-card">
+                            ${product.image ? `<img src="${product.image}" alt="${product.title}" class="product-image" onerror="this.style.display='none'">` : ''}
+                            <div class="product-title">${product.title}</div>
+                            <a href="${product.url}" target="_blank" class="product-price-link">
+                                ${product.formatted_price}
+                            </a>
+                        </div>
+                    `;
+                });
+                
+                sourcesHTML += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            sources.innerHTML = sourcesHTML;
+            results.style.display = 'block';
+        }
+
+        function showError(message) {
+            error.textContent = message;
+            error.style.display = 'block';
+            results.style.display = 'none';
+        }
+
+        function formatPrice(price) {
+            return Math.round(price).toLocaleString('fa-IR');
+        }
+
+        function formatPriceRange(priceRange) {
+            // تبدیل رنج قیمتی به فارسی
+            return priceRange.replace(/\d+/g, function(match) {
+                return parseInt(match).toLocaleString('fa-IR');
+            });
+        }
+    </script>
+</body>
+</html>
+
