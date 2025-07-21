@@ -2,6 +2,7 @@ import requests
 import json
 import time
 import random
+import urllib.parse
 
 class Torob:
     def __init__(self):
@@ -13,176 +14,187 @@ class Torob:
             'Referer': 'https://torob.com/',
         }
     
-    def search(self, query, page=0):
-        """جستجو در ترب با چندین روش"""
-        print(f"🔍 Torob API: جستجو برای '{query}'")
+    def search(self, q, page=0):
+        """جستجو در ترب با استفاده از API اصلی"""
+        print(f"🔍 Torob API: جستجو برای '{q}' در صفحه {page}")
         
-        # روش 1: API اصلی
-        result = self._try_main_api(query, page)
-        if result and result.get('results'):
-            print(f"✅ API اصلی موفق: {len(result['results'])} محصول")
-            return result
-        
-        # روش 2: API جایگزین
-        result = self._try_alternative_api(query, page)
-        if result and result.get('results'):
-            print(f"✅ API جایگزین موفق: {len(result['results'])} محصول")
-            return result
-        
-        # روش 3: وب اسکرپینگ
-        result = self._try_web_scraping(query)
-        if result and result.get('results'):
-            print(f"✅ وب اسکرپینگ موفق: {len(result['results'])} محصول")
-            return result
-        
-        # روش 4: داده‌های شبیه‌سازی شده
-        print("⚠️ همه روش‌ها شکست خورد، استفاده از داده‌های شبیه‌سازی")
-        return self._generate_mock_data(query)
-    
-    def _try_main_api(self, query, page):
-        """تلاش با API اصلی"""
         try:
-            url = f"{self.base_url}/base-search/"
+            # استفاده از API اصلی مطابق با setup.py
+            url = f"{self.base_url}/base-product/search/"
             params = {
-                'q': query,
-                'page': page,
-                'size': 24
+                'q': q,
+                'page': page
             }
             
             print(f"📡 درخواست به: {url}")
+            print(f"📋 پارامترها: {params}")
+            
             response = requests.get(url, params=params, headers=self.headers, timeout=15)
             print(f"📊 Status Code: {response.status_code}")
             
             if response.status_code == 200:
                 data = response.json()
                 print(f"📦 داده دریافت شد: {type(data)}")
-                return data
+                
+                # پردازش داده‌ها مطابق با api.py
+                processed_data = self._process_search_data(data)
+                
+                if processed_data and processed_data.get('results'):
+                    print(f"✅ API موفق: {len(processed_data['results'])} محصول")
+                    return processed_data
+                else:
+                    print("❌ داده‌های معتبری دریافت نشد")
+                    return None
             else:
                 print(f"❌ خطای HTTP: {response.status_code}")
+                print(f"📄 پاسخ: {response.text[:200]}...")
                 return None
                 
+        except requests.exceptions.Timeout:
+            print("❌ خطای Timeout")
+            return None
+        except requests.exceptions.ConnectionError:
+            print("❌ خطای اتصال")
+            return None
+        except json.JSONDecodeError as e:
+            print(f"❌ خطای JSON: {e}")
+            return None
         except Exception as e:
-            print(f"❌ خطا در API اصلی: {e}")
+            print(f"❌ خطای عمومی: {e}")
             return None
     
-    def _try_alternative_api(self, query, page):
-        """تلاش با API جایگزین"""
+    def _process_search_data(self, data):
+        """پردازش داده‌های جستجو مطابق با api.py"""
         try:
-            # API جایگزین ترب
-            url = "https://api.torob.com/v4/product-search/"
-            params = {
-                'query': query,
-                'page': page
-            }
+            if not data or not isinstance(data, dict):
+                return None
             
-            response = requests.get(url, params=params, headers=self.headers, timeout=15)
+            # بررسی وجود results
+            if 'results' not in data:
+                print("❌ فیلد results یافت نشد")
+                return None
             
-            if response.status_code == 200:
-                return response.json()
-            return None
+            results = data['results']
+            if not isinstance(results, list):
+                print("❌ results یک لیست نیست")
+                return None
             
-        except Exception as e:
-            print(f"❌ خطا در API جایگزین: {e}")
-            return None
-    
-    def _try_web_scraping(self, query):
-        """وب اسکرپینگ از ترب"""
-        try:
-            import urllib.parse
-            from bs4 import BeautifulSoup
-            import re
+            print(f"📋 پردازش {len(results)} محصول...")
             
-            encoded_query = urllib.parse.quote(query)
-            url = f"https://torob.com/search/?query={encoded_query}"
-            
-            headers = {
-                'User-Agent': self.headers['User-Agent'],
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'fa-IR,fa;q=0.9,en;q=0.8',
-            }
-            
-            response = requests.get(url, headers=headers, timeout=15)
-            
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-                results = []
-                
-                # جستجوی محصولات در HTML
-                product_elements = soup.find_all(['div', 'article'], class_=re.compile(r'product|item'))
-                
-                for i, element in enumerate(product_elements[:10]):
+            # پردازش هر محصول مطابق با __get_search_data_from_url
+            for item in results:
+                if 'more_info_url' in item and item['more_info_url']:
                     try:
-                        # استخراج نام
-                        title_elem = element.find(['h1', 'h2', 'h3', 'h4', 'a'], string=True)
-                        title = title_elem.get_text().strip() if title_elem else f"{query} - محصول {i+1}"
+                        # استخراج prk و search_id از more_info_url
+                        more_info_url = item['more_info_url']
                         
-                        # استخراج قیمت
-                        price_elem = element.find(string=re.compile(r'[\d,]+.*تومان|[\d,]+.*ریال'))
-                        price = None
+                        # استخراج prk
+                        prk_start = more_info_url.find("prk=")
+                        if prk_start != -1:
+                            prk_start += 4
+                            prk_end = more_info_url.find("&", prk_start)
+                            if prk_end == -1:
+                                prk_end = len(more_info_url)
+                            item["prk"] = more_info_url[prk_start:prk_end]
                         
-                        if price_elem:
-                            price_text = price_elem.strip()
-                            numbers = re.findall(r'[\d,]+', price_text.replace('٬', ','))
-                            if numbers:
-                                price = int(numbers[0].replace(',', ''))
-                                if 'ریال' in price_text:
-                                    price = price // 10
+                        # استخراج search_id
+                        search_id_start = more_info_url.find("search_id=")
+                        if search_id_start != -1:
+                            search_id_start += 10
+                            search_id_end = more_info_url.find("&", search_id_start)
+                            if search_id_end == -1:
+                                search_id_end = len(more_info_url)
+                            item["search_id"] = more_info_url[search_id_start:search_id_end]
                         
-                        if price and price > 1000:
-                            results.append({
-                                'name1': title,
-                                'price': price,
-                                'prk': f"scraped-{i}",
-                                'image_url': None,
-                                'shops': [{'name': 'ترب', 'price': price}]
-                            })
-                    except:
+                        print(f"✅ محصول پردازش شد: prk={item.get('prk', 'N/A')}, search_id={item.get('search_id', 'N/A')}")
+                        
+                    except Exception as e:
+                        print(f"❌ خطا در پردازش more_info_url: {e}")
                         continue
-                
-                return {'results': results} if results else None
             
-            return None
+            return data
             
         except Exception as e:
-            print(f"❌ خطا در وب اسکرپینگ: {e}")
+            print(f"❌ خطا در پردازش داده‌ها: {e}")
             return None
-    
-    def _generate_mock_data(self, query):
-        """تولید داده‌های شبیه‌سازی شده"""
-        results = []
-        base_price = random.randint(100000, 2000000)
-        
-        for i in range(5):
-            variation = random.randint(-50000, 100000)
-            price = base_price + variation
-            
-            results.append({
-                'name1': f"{query} - مدل {i+1}",
-                'price': price,
-                'prk': f"mock-{i}",
-                'image_url': None,
-                'shops': [
-                    {
-                        'name': f'فروشگاه {i+1}',
-                        'price': price + random.randint(-10000, 10000)
-                    }
-                ]
-            })
-        
-        return {'results': results}
     
     def details(self, prk, search_id=None):
+        """دریافت جزئیات محصول مطابق با API"""
         try:
-            url = f"{self.base_url}/product-page/"
+            if not prk:
+                return {}
+            
+            url = f"{self.base_url}/base-product/details/"
             params = {'prk': prk}
             if search_id:
                 params['search_id'] = search_id
             
+            print(f"📡 درخواست جزئیات: {url}")
+            print(f"📋 پارامترها: {params}")
+            
             response = requests.get(url, params=params, headers=self.headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                print(f"✅ جزئیات دریافت شد")
+                return data
+            else:
+                print(f"❌ خطا در دریافت جزئیات: {response.status_code}")
+                return {}
+                
+        except Exception as e:
+            print(f"❌ خطا در details: {e}")
+            return {}
+    
+    def suggestion(self, q):
+        """پیشنهادات محصول"""
+        try:
+            url = "https://api.torob.com/suggestion2/"
+            params = {"q": q}
+            
+            response = requests.get(url, params=params, headers=self.headers, timeout=10)
+            
             if response.status_code == 200:
                 return response.json()
             else:
                 return {}
+                
         except Exception as e:
-            print(f"Error in Torob details: {e}")
+            print(f"❌ خطا در suggestion: {e}")
+            return {}
+    
+    def special_offers(self, page=0):
+        """پیشنهادات ویژه"""
+        try:
+            url = f"{self.base_url}/special-offers/"
+            params = {"page": page}
+            
+            response = requests.get(url, params=params, headers=self.headers, timeout=10)
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return {}
+                
+        except Exception as e:
+            print(f"❌ خطا در special_offers: {e}")
+            return {}
+    
+    def price_chart(self, prk, search_id=None):
+        """نمودار قیمت محصول"""
+        try:
+            url = f"{self.base_url}/base-product/price-chart/"
+            params = {"prk": prk}
+            if search_id:
+                params['search_id'] = search_id
+            
+            response = requests.get(url, params=params, headers=self.headers, timeout=10)
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return {}
+                
+        except Exception as e:
+            print(f"❌ خطا در price_chart: {e}")
             return {}
