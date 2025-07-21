@@ -119,7 +119,7 @@
             padding: 25px;
             border-radius: 10px;
             margin-bottom: 25px;
-            border-right: 5px solid #4CAF50;
+            border-right: 5px solid #2196F3;
         }
         
         .price-item {
@@ -147,11 +147,22 @@
         .fair-price {
             background: #4CAF50;
             color: white;
-            padding: 15px;
+            padding: 20px;
             border-radius: 10px;
             text-align: center;
             font-size: 1.3em;
             margin-bottom: 20px;
+        }
+
+        .fair-price h3 {
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            font-weight: normal;
+            opacity: 0.9;
+        }
+
+        .fair-price strong {
+            font-size: 1.5em;
         }
         
         .sources {
@@ -304,13 +315,24 @@
             <div class="error" id="error"></div>
             
             <div class="results" id="results">
-                <div class="fair-price" id="fairPrice"></div>
+                <div class="fair-price" id="suggestedPriceBox"></div>
                 
                 <div class="price-summary" id="priceSummary"></div>
                 
                 <div class="sources" id="sources"></div>
             </div>
         </div>
+        <div class="calculator-box" style="margin-bottom:30px; background:#f8f9fa; padding:20px; border-radius:10px;">
+    <h3 style="margin-bottom:15px;">ماشین حساب قیمت‌گذاری</h3>
+    <div style="display:flex; flex-wrap:wrap; gap:15px;">
+        <input type="number" id="materialCost" class="search-input" placeholder="هزینه مواد اولیه (تومان)">
+        <input type="number" id="hoursSpent" class="search-input" placeholder="تعداد ساعات صرف شده">
+        <input type="number" id="hourlyWage" class="search-input" placeholder="دستمزد ساعتی (تومان)">
+        <input type="number" id="overheadCost" class="search-input" placeholder="هزینه‌های جانبی (تومان)">
+        <button class="search-btn" id="calcBtn" type="button">محاسبه قیمت</button>
+    </div>
+    <div id="calcResult" style="margin-top:15px; font-weight:bold; color:#4CAF50;"></div>
+</div>
     </div>
 
     <script>
@@ -319,9 +341,9 @@
         const loading = document.getElementById('loading');
         const results = document.getElementById('results');
         const error = document.getElementById('error');
-        const fairPrice = document.getElementById('fairPrice');
         const priceSummary = document.getElementById('priceSummary');
         const sources = document.getElementById('sources');
+        let lastCalculatedPrice = null;
 
         // جستجو با Enter
         productInput.addEventListener('keypress', function(e) {
@@ -353,7 +375,8 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    product_name: productName
+                    product_name: productName,
+                    calculated_price: lastCalculatedPrice
                 })
             })
             .then(response => response.json())
@@ -376,13 +399,24 @@
         }
 
         function showResults(data) {
-            // نمایش قیمت منصفانه
-            fairPrice.innerHTML = `
-                💰 قیمت پیشنهادی: <strong>${data.formatted_fair_price}</strong>
+            // نمایش قیمت پیشنهادی نهایی (مُظنه)
+            const suggestedPriceBox = document.getElementById('suggestedPriceBox');
+            const explanation = data.was_calculated
+                ? 'این قیمت با توجه به توجه به تحلیل بازار و هزینه‌های شما ارائه شده است.'
+                : 'این قیمت بر اساس تحلیل بازار پیشنهاد شده است.';
+
+            suggestedPriceBox.innerHTML = `
+                <h3>قیمت پیشنهادی (مُظنه)</h3>
+                <strong>${data.formatted_final_suggested_price}</strong>
+                <p style="font-size: 0.8em; opacity: 0.9; margin-top: 5px;">${explanation}</p>
             `;
 
-            // نمایش خلاصه قیمت‌ها
+            // نمایش خلاصه قیمت‌های بازار
             priceSummary.innerHTML = `
+                <div class="price-item">
+                    <span class="price-label" style="font-size: 1.1em;">📊 خلاصه تحلیل بازار</span>
+                    <span class="price-value"></span>
+                </div>
                 <div class="price-item">
                     <span class="price-label">رنج قیمتی:</span>
                     <span class="price-value">${data.price_range}</span>
@@ -473,6 +507,38 @@
                 return parseInt(match).toLocaleString('fa-IR');
             });
         }
+
+        const calcBtn = document.getElementById('calcBtn');
+        const calcResult = document.getElementById('calcResult');
+
+        calcBtn.addEventListener('click', function() {
+            try {
+                const materialCost = parseFloat(document.getElementById('materialCost').value);
+                const hoursSpent = parseFloat(document.getElementById('hoursSpent').value);
+                const hourlyWage = parseFloat(document.getElementById('hourlyWage').value);
+                const overheadCost = parseFloat(document.getElementById('overheadCost').value);
+
+                if ([materialCost, hoursSpent, hourlyWage, overheadCost].some(isNaN)) {
+                    calcResult.style.color = '#c62828';
+                    calcResult.textContent = 'لطفاً همه مقادیر را به صورت عددی وارد کنید.';
+                    lastCalculatedPrice = null;
+                    return;
+                }
+
+                const labor_cost = hoursSpent * hourlyWage;
+                const base_cost = materialCost + labor_cost;
+                const final_price = (base_cost * 2) + overheadCost;
+
+                calcResult.style.color = '#4CAF50';
+                calcResult.textContent = `قیمت محاسبه شده شما: ${final_price.toLocaleString('fa-IR')} تومان`;
+                lastCalculatedPrice = final_price;
+
+            } catch (e) {
+                calcResult.style.color = '#c62828';
+                calcResult.textContent = 'خطا در محاسبه. لطفاً ورودی‌ها را بررسی کنید.';
+                lastCalculatedPrice = null;
+            }
+        });
     </script>
 </body>
 </html>

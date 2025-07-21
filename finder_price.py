@@ -380,7 +380,9 @@ class PriceFinder:
                                             'title': product.get('title', 'محصول باسلام'),
                                             'url': f"https://basalam.com/p/{product.get('id', '')}/",
                                             'shop': 'باسلام',
-                                            'image': product.get('image_url')
+                                            'image': product.get('photo',{}).get(
+                                                'MEDIUM'
+                                            )
                                         }
                                         results.append(product_info)
                             except Exception as e:
@@ -488,6 +490,17 @@ class PriceFinder:
         
         return results
 
+def remove_outliers(prices):
+    if len(prices) < 4:
+        return prices  # برای داده‌های کم، حذف نکن
+    sorted_prices = sorted(prices)
+    q1 = statistics.median(sorted_prices[:len(sorted_prices)//2])
+    q3 = statistics.median(sorted_prices[(len(sorted_prices)+1)//2:])
+    iqr = q3 - q1
+    lower = q1 - 1.5 * iqr
+    upper = q3 + 1.5 * iqr
+    return [p for p in prices if lower <= p <= upper]
+
 # Flask Routes
 @app.route('/')
 def index():
@@ -503,6 +516,7 @@ def search_products():
             return jsonify({"success": False, "message": "product_name is required"}), 400
         
         product_name = data['product_name']
+        calculated_price = data.get('calculated_price')
         print(f"🔍 جستجو برای: {product_name}")
         
         finder = PriceFinder()
@@ -545,19 +559,32 @@ def search_products():
         
         # استخراج قیمت‌ها
         prices = [r['price'] for r in valid_results]
-        
+
+        # حذف داده‌های پرت
+        filtered_prices = remove_outliers(prices)
+        if not filtered_prices:
+            filtered_prices = prices  # اگر همه حذف شدند، همان قبلی را نگه دار
+
         # محاسبه آمار
-        min_price = min(prices)
-        max_price = max(prices)
-        avg_price = sum(prices) / len(prices)
+        min_price = min(filtered_prices)
+        max_price = max(filtered_prices)
+        avg_price = sum(filtered_prices) / len(filtered_prices)
         
         # محاسبه قیمت منصفانه (میانه)
-        sorted_prices = sorted(prices)
+        sorted_prices = sorted(filtered_prices)
         n = len(sorted_prices)
         if n % 2 == 0:
             fair_price = (sorted_prices[n//2 - 1] + sorted_prices[n//2]) / 2
         else:
             fair_price = sorted_prices[n//2]
+        
+        # قیمت پیشنهادی نهایی: میانگین میانه بازار و قیمت محاسبه‌شده (اگر وجود دارد)
+        was_calculated = False
+        if calculated_price and isinstance(calculated_price, (int, float)):
+            suggested_price = int((fair_price + float(calculated_price)) / 2)
+            was_calculated = True
+        else:
+            suggested_price = int(fair_price)
         
         # گروه‌بندی بر اساس فروشگاه با جزئیات کامل
         sources = {}
@@ -598,15 +625,16 @@ def search_products():
         response_data = {
             "success": True,
             "product_name": product_name,
-            "fair_price": int(fair_price),
             "min_price": int(min_price),
             "max_price": int(max_price),
             "avg_price": int(avg_price),
             "price_range": f"{int(min_price):,} - {int(max_price):,} تومان",
-            "formatted_fair_price": f"{int(fair_price):,} تومان",
             "formatted_min_price": f"{int(min_price):,} تومان",
             "formatted_max_price": f"{int(max_price):,} تومان",
             "formatted_avg_price": f"{int(avg_price):,} تومان",
+            "final_suggested_price": suggested_price,
+            "formatted_final_suggested_price": f"{suggested_price:,} تومان",
+            "was_calculated": was_calculated,
             "sources": sources,  # قیمت‌های ساده برای نمایش آمار
             "detailed_products": detailed_products,  # جزئیات کامل با لینک
             "source_stats": source_stats,
@@ -619,7 +647,7 @@ def search_products():
         }
         
         print(f"📊 آمار نهایی:")
-        print(f"   💰 قیمت منصفانه: {int(fair_price):,} تومان")
+        print(f"   💰 قیمت پیشنهادی نهایی: {suggested_price:,} تومان")
         print(f"   📈 رنج قیمت: {int(min_price):,} - {int(max_price):,} تومان")
         print(f"   🏪 فروشگاه‌ها: {list(sources.keys())}")
         
