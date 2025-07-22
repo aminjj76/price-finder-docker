@@ -218,85 +218,77 @@ class PriceFinder:
         return results
     
     def search_torob(self, product_name):
-        """جستجو در ترب با استفاده از API بهبود یافته"""
+        """
+        جستجو در ترب با دریافت قیمت و عکس واقعی هر محصول و لینک به صفحه اختصاصی محصول
+        """
         try:
             print(f"🛒 شروع جستجو در ترب برای: {product_name}")
-            
-            # بررسی وجود torob API
+
             if not hasattr(self, 'torob') or self.torob is None:
                 print("❌ Torob API در دسترس نیست")
                 return self.torob_fallback(product_name)
-            
-            # فراخوانی API
+
+            # جستجو در ترب
             search_result = self.torob.search(product_name, page=0)
-            
-            if not search_result:
+            if not search_result or "results" not in search_result:
                 print("❌ پاسخ خالی از API")
                 return self.torob_fallback(product_name)
-            
-            print(f"📡 پاسخ دریافت شد: {type(search_result)}")
-            
-            # استخراج محصولات
-            products = search_result.get('results', [])
-            
+
+            products = search_result["results"]
             if not products:
                 print("❌ هیچ محصولی یافت نشد")
                 return self.torob_fallback(product_name)
-            
+
             print(f"📦 {len(products)} محصول یافت شد")
-            
             results = []
-            
+
             for i, product in enumerate(products[:5]):
                 try:
-                    print(f"\n--- محصول {i+1} ---")
-                    
-                    # استخراج نام
-                    title = product.get('name1', f"{product_name} - محصول {i+1}")
-                    print(f"📝 نام: {title}")
-                    
-                    # استخراج قیمت
+                    prk = product.get('prk')
+                    search_id = product.get('search_id')
+                    title = product.get('name1', product_name)
+                    url = f"https://torob.com/p/{prk}/" if prk else f"https://torob.com/search/?query={urllib.parse.quote(product_name)}"
+
+                    # دریافت جزئیات محصول برای قیمت و عکس دقیق
+                    details = self.torob.details(prk, search_id) if prk and search_id else {}
+
+                    # قیمت
                     price = None
-                    
-                    # قیمت مستقیم
-                    if 'price' in product and product['price']:
+                    if details and 'min_price' in details and details['min_price']:
+                        price = int(details['min_price'])
+                    elif 'price' in product and product['price']:
                         price = self.normalize_price(product['price'])
-                        print(f"💰 قیمت مستقیم: {price}")
-                    
-                    # قیمت از فروشگاه‌ها
-                    if not price and 'shops' in product and product['shops']:
-                        for shop in product['shops']:
-                            if 'price' in shop and shop['price']:
-                                shop_price = self.normalize_price(shop['price'])
-                                if shop_price and shop_price > 1000:
-                                    price = shop_price
-                                    print(f"💰 قیمت از فروشگاه: {price}")
-                                    break
-                    
+
+                    # عکس
+                    image_url = None
+                    if details and 'image_url' in details and details['image_url']:
+                        image_url = details['image_url']
+                    elif 'image_url' in product and product['image_url']:
+                        image_url = product['image_url']
+
                     if price and price > 1000:
-                        product_info = {
+                        results.append({
                             'price': price,
                             'title': title[:100],
-                            'url': f"https://torob.com/p/{product.get('prk', '')}/",
+                            'url': url,
                             'shop': 'ترب',
-                            'image': product.get('image_url')
-                        }
-                        results.append(product_info)
-                        print(f"✅ محصول اضافه شد: {price:,} تومان")
+                            'image': image_url
+                        })
+                        print(f"✅ محصول اضافه شد: {title} | {price} | {url}")
                     else:
                         print(f"❌ قیمت معتبر نیست: {price}")
-                        
+
                 except Exception as e:
                     print(f"❌ خطا در محصول {i+1}: {e}")
                     continue
-            
+
             if results:
                 print(f"🎉 {len(results)} محصول معتبر پیدا شد")
                 return results
             else:
                 print("❌ هیچ محصول معتبری نبود، استفاده از fallback")
                 return self.torob_fallback(product_name)
-            
+
         except Exception as e:
             print(f"❌ خطا کلی: {e}")
             import traceback
@@ -377,7 +369,7 @@ class PriceFinder:
                                     if price_value > 1000:
                                         product_info = {
                                             'price': price_value,
-                                            'title': product.get('title', 'محصول باسلام'),
+                                            'title': product.get('name', 'محصول باسلام'),
                                             'url': f"https://basalam.com/p/{product.get('id', '')}/",
                                             'shop': 'باسلام',
                                             'image': product.get('photo',{}).get(
@@ -559,7 +551,7 @@ def search_products():
         
         # استخراج قیمت‌ها
         prices = [r['price'] for r in valid_results]
-
+        
         # حذف داده‌های پرت
         filtered_prices = remove_outliers(prices)
         if not filtered_prices:
