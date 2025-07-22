@@ -578,11 +578,23 @@ def search_products():
         else:
             fair_price = sorted_prices[n//2]
         
-        # قیمت پیشنهادی نهایی: میانگین میانه بازار و قیمت محاسبه‌شده (اگر وجود دارد)
-        was_calculated = False
+        # قیمت پیشنهادی نهایی بر اساس استراتژی و قیمت پایه کاربر
+        strategy = data.get('strategy', 'balanced')
+        explanation = "این قیمت بر اساس تحلیل بازار پیشنهاد شده است."
+
         if calculated_price and isinstance(calculated_price, (int, float)):
-            suggested_price = int((fair_price + float(calculated_price)) / 2)
-            was_calculated = True
+            if strategy == 'competitive':
+                market_weight, your_weight = 0.7, 0.3
+                strategy_text = "استراتژی رقابتی"
+            elif strategy == 'value-based':
+                market_weight, your_weight = 0.3, 0.7
+                strategy_text = "استراتژی مبتنی بر ارزش"
+            else:  # balanced
+                market_weight, your_weight = 0.5, 0.5
+                strategy_text = "استراتژی متعادل"
+            
+            suggested_price = int((fair_price * market_weight) + (float(calculated_price) * your_weight))
+            explanation = f"این قیمت با توجه به تحلیل بازار، قیمت پایه شما و «{strategy_text}» ارائه شده است."
         else:
             suggested_price = int(fair_price)
         
@@ -634,7 +646,7 @@ def search_products():
             "formatted_avg_price": f"{int(avg_price):,} تومان",
             "final_suggested_price": suggested_price,
             "formatted_final_suggested_price": f"{suggested_price:,} تومان",
-            "was_calculated": was_calculated,
+            "explanation": explanation,
             "sources": sources,  # قیمت‌های ساده برای نمایش آمار
             "detailed_products": detailed_products,  # جزئیات کامل با لینک
             "source_stats": source_stats,

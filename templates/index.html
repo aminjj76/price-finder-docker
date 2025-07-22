@@ -51,7 +51,8 @@
         .search-box {
             display: flex;
             gap: 15px;
-            margin-bottom: 30px;
+            align-items: center;
+            margin-bottom: 20px;
         }
         
         .search-input {
@@ -306,6 +307,15 @@
                 <input type="text" class="search-input" id="productInput" placeholder="نام محصول را وارد کنید..." />
                 <button class="search-btn" id="searchBtn">جستجو</button>
             </div>
+
+            <div class="strategy-box">
+                <label for="pricingStrategy">استراتژی قیمت‌گذاری:</label>
+                <select id="pricingStrategy" class="search-input" style="flex-grow: 0.5;">
+                    <option value="balanced" selected>⚖️ متعادل (پیش‌فرض)</option>
+                    <option value="competitive">🎯 رقابتی (نزدیک به بازار)</option>
+                    <option value="value-based">✨ مبتنی بر ارزش (نزدیک به هزینه شما)</option>
+                </select>
+            </div>
             
             <div class="loading" id="loading">
                 <div class="spinner"></div>
@@ -323,13 +333,21 @@
             </div>
         </div>
         <div class="calculator-box" style="margin-bottom:30px; background:#f8f9fa; padding:20px; border-radius:10px;">
-    <h3 style="margin-bottom:15px;">ماشین حساب قیمت‌گذاری</h3>
-    <div style="display:flex; flex-wrap:wrap; gap:15px;">
+    <h3 style="margin-bottom:15px;">ماشین حساب قیمت‌گذاری پیشرفته</h3>
+    <div class="input-group">
         <input type="number" id="materialCost" class="search-input" placeholder="هزینه مواد اولیه (تومان)">
         <input type="number" id="hoursSpent" class="search-input" placeholder="تعداد ساعات صرف شده">
         <input type="number" id="hourlyWage" class="search-input" placeholder="دستمزد ساعتی (تومان)">
         <input type="number" id="overheadCost" class="search-input" placeholder="هزینه‌های جانبی (تومان)">
-        <button class="search-btn" id="calcBtn" type="button">محاسبه قیمت</button>
+    </div>
+    <div class="input-group">
+         <select id="complexityMultiplier" class="search-input">
+            <option value="1.0" selected>ضریب پیچیدگی: ساده و تکرارپذیر</option>
+            <option value="1.5">ضریب پیچیدگی: نیمه‌سفارشی</option>
+            <option value="2.0">ضریب پیچیدگی: پیچیده و هنری</option>
+            <option value="2.5">ضریب پیچیدگی: اثر هنری</option>
+        </select>
+        <button class="search-btn" id="calcBtn" type="button" style="flex-grow: 0;">محاسبه قیمت پایه</button>
     </div>
     <div id="calcResult" style="margin-top:15px; font-weight:bold; color:#4CAF50;"></div>
 </div>
@@ -368,6 +386,8 @@
             error.style.display = 'none';
             searchBtn.disabled = true;
 
+            const strategy = document.getElementById('pricingStrategy').value;
+
             // ارسال درخواست
             fetch('/search', {
                 method: 'POST',
@@ -376,7 +396,8 @@
                 },
                 body: JSON.stringify({
                     product_name: productName,
-                    calculated_price: lastCalculatedPrice
+                    calculated_price: lastCalculatedPrice,
+                    strategy: strategy
                 })
             })
             .then(response => response.json())
@@ -401,14 +422,11 @@
         function showResults(data) {
             // نمایش قیمت پیشنهادی نهایی (مُظنه)
             const suggestedPriceBox = document.getElementById('suggestedPriceBox');
-            const explanation = data.was_calculated
-                ? 'این قیمت با توجه به توجه به تحلیل بازار و هزینه‌های شما ارائه شده است.'
-                : 'این قیمت بر اساس تحلیل بازار پیشنهاد شده است.';
-
+            
             suggestedPriceBox.innerHTML = `
                 <h3>قیمت پیشنهادی (مُظنه)</h3>
                 <strong>${data.formatted_final_suggested_price}</strong>
-                <p style="font-size: 0.8em; opacity: 0.9; margin-top: 5px;">${explanation}</p>
+                <p style="font-size: 0.8em; opacity: 0.9; margin-top: 5px;">${data.explanation}</p>
             `;
 
             // نمایش خلاصه قیمت‌های بازار
@@ -513,25 +531,26 @@
 
         calcBtn.addEventListener('click', function() {
             try {
-                const materialCost = parseFloat(document.getElementById('materialCost').value);
-                const hoursSpent = parseFloat(document.getElementById('hoursSpent').value);
-                const hourlyWage = parseFloat(document.getElementById('hourlyWage').value);
-                const overheadCost = parseFloat(document.getElementById('overheadCost').value);
+                const materialCost = parseFloat(document.getElementById('materialCost').value) || 0;
+                const hoursSpent = parseFloat(document.getElementById('hoursSpent').value) || 0;
+                const hourlyWage = parseFloat(document.getElementById('hourlyWage').value) || 0;
+                const overheadCost = parseFloat(document.getElementById('overheadCost').value) || 0;
+                const complexity = parseFloat(document.getElementById('complexityMultiplier').value);
 
-                if ([materialCost, hoursSpent, hourlyWage, overheadCost].some(isNaN)) {
+                if (isNaN(complexity)) {
                     calcResult.style.color = '#c62828';
-                    calcResult.textContent = 'لطفاً همه مقادیر را به صورت عددی وارد کنید.';
+                    calcResult.textContent = 'لطفاً مقادیر معتبر وارد کنید.';
                     lastCalculatedPrice = null;
                     return;
                 }
+                
+                // فرمول جدید: قیمت پایه شما = (هزینه مواد اولیه + (تعداد ساعات × دستمزد ساعتی × ضریب پیچیدگی)) + هزینه‌های جانبی
+                const your_base_price = (materialCost + (hoursSpent * hourlyWage * complexity)) + overheadCost;
 
-                const labor_cost = hoursSpent * hourlyWage;
-                const base_cost = materialCost + labor_cost;
-                const final_price = (base_cost * 2) + overheadCost;
 
                 calcResult.style.color = '#4CAF50';
-                calcResult.textContent = `قیمت محاسبه شده شما: ${final_price.toLocaleString('fa-IR')} تومان`;
-                lastCalculatedPrice = final_price;
+                calcResult.textContent = `قیمت پایه شما: ${your_base_price.toLocaleString('fa-IR')} تومان`;
+                lastCalculatedPrice = your_base_price;
 
             } catch (e) {
                 calcResult.style.color = '#c62828';
