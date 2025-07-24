@@ -230,6 +230,8 @@ class PriceFinder:
 
             # جستجو در ترب
             search_result = self.torob.search(product_name, page=0)
+            import json
+            print("Torob search_result:", json.dumps(search_result, ensure_ascii=False, indent=2))
             if not search_result or "results" not in search_result:
                 print("❌ پاسخ خالی از API")
                 return self.torob_fallback(product_name)
@@ -244,13 +246,18 @@ class PriceFinder:
 
             for i, product in enumerate(products[:5]):
                 try:
+                    print(f"Product: {json.dumps(product, ensure_ascii=False)}")
                     prk = product.get('prk')
                     search_id = product.get('search_id')
                     title = product.get('name1', product_name)
-                    url = f"https://torob.com/p/{prk}/" if prk else f"https://torob.com/search/?query={urllib.parse.quote(product_name)}"
+                    if not prk:
+                        print(f"⚠️ محصول بدون prk: {title}")
+                        continue
+                    url = f"https://torob.com/p/{prk}/"
 
                     # دریافت جزئیات محصول برای قیمت و عکس دقیق
                     details = self.torob.details(prk, search_id) if prk and search_id else {}
+                    print("Torob details:", json.dumps(details, ensure_ascii=False, indent=2))
 
                     # قیمت
                     price = None
